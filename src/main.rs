@@ -1,52 +1,46 @@
-use bevy::prelude::*;
+use bevy::{core::FixedTimestep, prelude::*};
+
+const TIME_STEP: f32 = 1.0 / 60.0;
 
 fn main() {
     App::build()
         .add_plugins(DefaultPlugins) //TODO: maybe split this up?
-        .add_plugin(HelloPlugin)
+        .add_plugin(TamfPlugin)
         .run();
 }
 
-pub struct HelloPlugin;
+pub struct TamfPlugin;
 
-impl Plugin for HelloPlugin {
+impl Plugin for TamfPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        //TODO:
-        app.insert_resource(GreetTimer(Timer::from_seconds(2.0, true)))
-            .add_startup_system(add_squirrels.system())
-            .add_system(greet_squirrels.system());
+        app.add_startup_system(setup.system()).add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
+                .with_system(move_squirrels.system()),
+        );
     }
 }
 
-struct GreetTimer(Timer);
-
-fn greet_squirrels(
-    time: Res<Time>,
-    mut timer: ResMut<GreetTimer>,
-    query: Query<&Name, With<Squirrel>>,
-) {
-    if timer.0.tick(time.delta()).just_finished() {
-        for name in query.iter() {
-            println!("Hello {}!", name.0);
-        }
+fn move_squirrels(mut query: Query<(&Squirrel, &mut Transform)>) {
+    if let Ok((squirrel, mut transform)) = query.single_mut() {
+        transform.translation += squirrel.velocity * TIME_STEP;
     }
 }
 
-struct Squirrel;
+struct Squirrel {
+    velocity: Vec3,
+}
 
-struct Name(String);
-
-fn add_squirrels(mut commands: Commands) {
+fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
+    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
     commands
-        .spawn()
-        .insert(Squirrel)
-        .insert(Name("Ingrid".to_string()));
-    commands
-        .spawn()
-        .insert(Squirrel)
-        .insert(Name("Ana".to_string()));
-    commands
-        .spawn()
-        .insert(Squirrel)
-        .insert(Name("Shep".to_string()));
+        .spawn_bundle(SpriteBundle {
+            material: materials.add(Color::rgb(1.0, 0.5, 0.5).into()),
+            transform: Transform::from_xyz(0.0, 0.0, 0.0),
+            sprite: Sprite::new(Vec2::new(30.0, 30.0)),
+            ..Default::default()
+        })
+        .insert(Squirrel {
+            velocity: 400.0 * Vec3::new(0.5, 0.5, 0.0).normalize(),
+        });
 }
