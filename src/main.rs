@@ -1,6 +1,8 @@
 use bevy::{core::FixedTimestep, prelude::*};
 
 const TIME_STEP: f32 = 1.0 / 60.0;
+const X_BOUND: f32 = 800.0; //TODO: figure out what the actual screen bounds are,
+const Y_BOUND: f32 = 400.0; // and maybe do it dynamically?
 
 fn main() {
     App::build()
@@ -21,12 +23,6 @@ impl Plugin for TamfPlugin {
     }
 }
 
-fn move_squirrels(mut query: Query<(&Squirrel, &mut Transform)>) {
-    if let Ok((squirrel, mut transform)) = query.single_mut() {
-        transform.translation += squirrel.velocity * TIME_STEP;
-    }
-}
-
 struct Squirrel {
     velocity: Vec3,
 }
@@ -43,4 +39,22 @@ fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
         .insert(Squirrel {
             velocity: 400.0 * Vec3::new(0.5, 0.5, 0.0).normalize(),
         });
+}
+
+fn move_squirrels(mut query: Query<(&mut Squirrel, &mut Transform)>) {
+    if let Ok((mut squirrel, mut transform)) = query.single_mut() {
+        // Reverse velocity component if going out of frame
+        if (transform.translation.x > X_BOUND && squirrel.velocity.x > 0.0)
+            || (transform.translation.x < -X_BOUND && squirrel.velocity.x < 0.0)
+        {
+            squirrel.velocity.x = -squirrel.velocity.x;
+        } else if (transform.translation.y > Y_BOUND && squirrel.velocity.y > 0.0)
+            || (transform.translation.y < -Y_BOUND && squirrel.velocity.y < 0.0)
+        {
+            squirrel.velocity.y = -squirrel.velocity.y;
+        }
+
+        // Movement for this time step
+        transform.translation += squirrel.velocity * TIME_STEP;
+    }
 }
