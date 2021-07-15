@@ -61,7 +61,7 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
             .insert(Squirrel {
                 velocity: rng.gen_range(200.0..600.0)
                     * Vec3::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0), 0.0)
-                        .normalize(),
+                        .normalize_or_zero(),
             });
     }
 }
