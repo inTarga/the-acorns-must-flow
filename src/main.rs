@@ -1,8 +1,6 @@
 use bevy::{core::FixedTimestep, prelude::*};
 
 const TIME_STEP: f32 = 1.0 / 60.0;
-const X_BOUND: f32 = 800.0; //TODO: figure out what the actual screen bounds are,
-const Y_BOUND: f32 = 400.0; // and maybe do it dynamically?
 
 fn main() {
     App::build()
@@ -15,20 +13,39 @@ pub struct TamfPlugin;
 
 impl Plugin for TamfPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_startup_system(setup.system()).add_system_set(
-            SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
-                .with_system(move_squirrels.system()),
-        );
+        app.insert_resource(Bounds { x: 0.0, y: 0.0 })
+            .add_startup_system(setup.system())
+            .add_system_set(
+                SystemSet::new()
+                    .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
+                    .with_system(move_squirrels.system())
+                    .with_system(update_bounds.system()),
+            );
     }
+}
+
+struct Bounds {
+    x: f32,
+    y: f32,
 }
 
 struct Squirrel {
     velocity: Vec3,
 }
 
-fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+struct MainCamera;
+
+fn setup(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    bounds: ResMut<Bounds>,
+    windows: Res<Windows>,
+) {
+    update_bounds(bounds, windows);
+
+    commands
+        .spawn_bundle(OrthographicCameraBundle::new_2d())
+        .insert(MainCamera);
     commands
         .spawn_bundle(SpriteBundle {
             material: materials.add(Color::rgb(1.0, 0.5, 0.5).into()),
@@ -41,15 +58,15 @@ fn setup(mut commands: Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
         });
 }
 
-fn move_squirrels(mut query: Query<(&mut Squirrel, &mut Transform)>) {
+fn move_squirrels(mut query: Query<(&mut Squirrel, &mut Transform)>, bounds: Res<Bounds>) {
     if let Ok((mut squirrel, mut transform)) = query.single_mut() {
         // Reverse velocity component if going out of frame
-        if (transform.translation.x > X_BOUND && squirrel.velocity.x > 0.0)
-            || (transform.translation.x < -X_BOUND && squirrel.velocity.x < 0.0)
+        if (transform.translation.x > bounds.x && squirrel.velocity.x > 0.0)
+            || (transform.translation.x < -bounds.x && squirrel.velocity.x < 0.0)
         {
             squirrel.velocity.x = -squirrel.velocity.x;
-        } else if (transform.translation.y > Y_BOUND && squirrel.velocity.y > 0.0)
-            || (transform.translation.y < -Y_BOUND && squirrel.velocity.y < 0.0)
+        } else if (transform.translation.y > bounds.y && squirrel.velocity.y > 0.0)
+            || (transform.translation.y < -bounds.y && squirrel.velocity.y < 0.0)
         {
             squirrel.velocity.y = -squirrel.velocity.y;
         }
@@ -57,4 +74,10 @@ fn move_squirrels(mut query: Query<(&mut Squirrel, &mut Transform)>) {
         // Movement for this time step
         transform.translation += squirrel.velocity * TIME_STEP;
     }
+}
+
+fn update_bounds(mut bounds: ResMut<Bounds>, windows: Res<Windows>) {
+    let window = windows.get_primary().unwrap();
+    bounds.x = window.width() / 2 as f32;
+    bounds.y = window.height() / 2 as f32;
 }
