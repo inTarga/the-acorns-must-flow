@@ -79,6 +79,10 @@ fn move_squirrels(mut query: Query<(&mut Squirrel, &mut Transform)>, bounds: Res
 
         // Movement for this time step
         transform.translation += squirrel.velocity * TIME_STEP;
+
+        // Set sprite angle according to velocity
+        transform.rotation =
+            Quat::from_rotation_z(squirrel.velocity.angle_between(Vec3::new(0.0, 1.0, 0.0)));
     }
 }
 
