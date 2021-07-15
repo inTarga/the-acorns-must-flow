@@ -1,4 +1,5 @@
 use bevy::{core::FixedTimestep, prelude::*};
+use bevy_prototype_lyon::prelude::*;
 use rand::prelude::*;
 
 const TIME_STEP: f32 = 1.0 / 60.0;
@@ -7,6 +8,7 @@ fn main() {
     App::build()
         .add_plugins(DefaultPlugins) //TODO: maybe split this up?
         .add_plugin(TamfPlugin)
+        .add_plugin(ShapePlugin)
         .run();
 }
 
@@ -35,27 +37,27 @@ struct Squirrel {
     velocity: Vec3,
 }
 
-fn setup(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    bounds: ResMut<Bounds>,
-) {
+fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 
     let mut rng = rand::thread_rng();
 
     for _ in 0..10 {
         commands
-            .spawn_bundle(SpriteBundle {
-                material: materials.add(Color::rgb(rng.gen(), rng.gen(), rng.gen()).into()),
-                transform: Transform::from_xyz(
+            .spawn_bundle(GeometryBuilder::build_as(
+                &shapes::RegularPolygon {
+                    sides: 3,
+                    feature: shapes::RegularPolygonFeature::Radius(30.0),
+                    ..shapes::RegularPolygon::default()
+                },
+                ShapeColors::new(Color::rgb(rng.gen(), rng.gen(), rng.gen())),
+                DrawMode::Fill(FillOptions::default()),
+                Transform::from_xyz(
                     rng.gen_range(-bounds.x..bounds.x),
                     rng.gen_range(-bounds.y..bounds.y),
                     0.0,
                 ),
-                sprite: Sprite::new(Vec2::new(30.0, 30.0)),
-                ..Default::default()
-            })
+            ))
             .insert(Squirrel {
                 velocity: rng.gen_range(200.0..600.0)
                     * Vec3::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0), 0.0)
