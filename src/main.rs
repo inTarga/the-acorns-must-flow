@@ -44,6 +44,12 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
     let mut rng = rand::thread_rng();
 
     for _ in 0..10 {
+        // this maths ensures we never get initialise a zero heading
+        let y_heading: f32 = rng.gen_range(-1.0..1.0);
+
+        let x_dir = if rng.gen_bool(0.5) { 1.0 } else { -1.0 };
+        let x_heading = (1.0 - y_heading.abs()) * x_dir;
+
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shapes::RegularPolygon {
@@ -61,8 +67,7 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
             ))
             .insert(Squirrel {
                 speed: rng.gen_range(200.0..600.0),
-                heading: Vec3::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0), 0.0)
-                    .normalize_or_zero(),
+                heading: Vec3::new(x_heading, y_heading, 0.0).normalize(),
             });
     }
 }
