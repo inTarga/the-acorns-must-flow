@@ -34,7 +34,8 @@ struct Bounds {
 }
 
 struct Squirrel {
-    velocity: Vec3,
+    speed: f32,
+    heading: Vec3,
 }
 
 fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
@@ -59,9 +60,9 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
                 ),
             ))
             .insert(Squirrel {
-                velocity: rng.gen_range(200.0..600.0)
-                    * Vec3::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0), 0.0)
-                        .normalize_or_zero(),
+                speed: rng.gen_range(200.0..600.0),
+                heading: Vec3::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0), 0.0)
+                    .normalize_or_zero(),
             });
     }
 }
@@ -69,22 +70,22 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
 fn move_squirrels(mut query: Query<(&mut Squirrel, &mut Transform)>, bounds: Res<Bounds>) {
     for (mut squirrel, mut transform) in query.iter_mut() {
         // Reverse velocity component if going out of frame
-        if (transform.translation.x > bounds.x && squirrel.velocity.x > 0.0)
-            || (transform.translation.x < -bounds.x && squirrel.velocity.x < 0.0)
+        if (transform.translation.x > bounds.x && squirrel.heading.x > 0.0)
+            || (transform.translation.x < -bounds.x && squirrel.heading.x < 0.0)
         {
-            squirrel.velocity.x = -squirrel.velocity.x;
-        } else if (transform.translation.y > bounds.y && squirrel.velocity.y > 0.0)
-            || (transform.translation.y < -bounds.y && squirrel.velocity.y < 0.0)
+            squirrel.heading.x = -squirrel.heading.x;
+        } else if (transform.translation.y > bounds.y && squirrel.heading.y > 0.0)
+            || (transform.translation.y < -bounds.y && squirrel.heading.y < 0.0)
         {
-            squirrel.velocity.y = -squirrel.velocity.y;
+            squirrel.heading.y = -squirrel.heading.y;
         }
 
         // Movement for this time step
-        transform.translation += squirrel.velocity * TIME_STEP;
+        transform.translation += squirrel.heading * squirrel.speed * TIME_STEP;
 
         // Set sprite angle according to velocity
         transform.rotation =
-            Quat::from_rotation_z(squirrel.velocity.angle_between(Vec3::new(0.0, 1.0, 0.0)));
+            Quat::from_rotation_z(squirrel.heading.angle_between(Vec3::new(0.0, 1.0, 0.0)));
     }
 }
 
