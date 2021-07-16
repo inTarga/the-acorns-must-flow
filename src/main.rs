@@ -12,6 +12,7 @@ const CENTERING_FACTOR: f32 = 0.005;
 const ALIGNMENT_FACTOR: f32 = 0.05;
 const SEPARATION_FACTOR: f32 = 0.05;
 const SEPARATION_DISTANCE: f32 = 30.0;
+const REGULATION_FACTOR: f32 = 0.005;
 
 fn main() {
     App::build()
@@ -34,6 +35,7 @@ impl Plugin for TamfPlugin {
                     .with_system(center_squirrels.system())
                     .with_system(align_squirrels.system())
                     .with_system(separate_squirrels.system())
+                    .with_system(regulate_velocities.system())
                     .with_system(move_squirrels.system())
                     .with_system(update_bounds.system()),
             );
@@ -55,7 +57,7 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
 
     let mut rng = rand::thread_rng();
 
-    for i in 0..10 {
+    for i in 0..100 {
         // this maths ensures we never get initialise a zero heading
         let y_heading: f32 = rng.gen_range(-1.0..1.0);
 
@@ -159,6 +161,19 @@ fn separate_squirrels(mut query: Query<(&mut Squirrel, &Transform)>) {
         }
 
         squirrel.velocity += delta_v * SEPARATION_FACTOR;
+    }
+}
+
+// Keep squirrels from going too fast or slow
+fn regulate_velocities(mut query: Query<&mut Squirrel>) {
+    for mut squirrel in query.iter_mut() {
+        let sqv = squirrel.velocity.clone();
+
+        if squirrel.velocity.length_squared() < 500.0 * 500.0 {
+            squirrel.velocity += REGULATION_FACTOR * sqv;
+        } else if squirrel.velocity.length_squared() > 800.0 * 800.0 {
+            squirrel.velocity -= REGULATION_FACTOR * sqv;
+        }
     }
 }
 
