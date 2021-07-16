@@ -29,6 +29,7 @@ impl Plugin for TamfPlugin {
                 SystemSet::new()
                     .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                     .with_system(center_squirrels.system())
+                    .with_system(align_squirrels.system())
                     .with_system(move_squirrels.system())
                     .with_system(update_bounds.system()),
             );
@@ -101,6 +102,34 @@ fn center_squirrels(mut query: Query<(&mut Squirrel, &Transform)>) {
             center.y = center.y / num_neighbours as f32;
 
             squirrel.velocity += (center - transform.translation) * ALIGNMENT_FACTOR;
+        }
+    }
+}
+
+// match velocities with other squirrels in local flock
+fn align_squirrels(mut query: Query<(&mut Squirrel, &Transform)>) {
+    let mut squirrels: Vec<(Vec3, Vec3)> = Vec::new();
+    for (squirrel, transform) in query.iter_mut() {
+        squirrels.push((squirrel.velocity, transform.translation))
+    }
+
+    for (mut squirrel, transform) in query.iter_mut() {
+        let mut avg_velocity = Vec3::ZERO;
+        let mut num_neighbours = 0;
+
+        for (sub_velocity, sub_translation) in &squirrels {
+            if transform.translation.distance(*sub_translation) < FLOCKING_RANGE {
+                avg_velocity += *sub_velocity;
+                num_neighbours += 1;
+            }
+        }
+
+        if num_neighbours >= 2 {
+            avg_velocity.x = avg_velocity.x / num_neighbours as f32;
+            avg_velocity.y = avg_velocity.y / num_neighbours as f32;
+
+            let sqv = squirrel.velocity.clone();
+            squirrel.velocity += (avg_velocity - sqv) * ALIGNMENT_FACTOR;
         }
     }
 }
