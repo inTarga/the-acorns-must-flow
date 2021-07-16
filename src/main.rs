@@ -34,8 +34,7 @@ struct Bounds {
 }
 
 struct Squirrel {
-    speed: f32,
-    heading: Vec3,
+    velocity: Vec3,
 }
 
 fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
@@ -66,8 +65,8 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
                 ),
             ))
             .insert(Squirrel {
-                speed: rng.gen_range(200.0..600.0),
-                heading: Vec3::new(x_heading, y_heading, 0.0).normalize(),
+                velocity: rng.gen_range(200.0..600.0)
+                    * Vec3::new(x_heading, y_heading, 0.0).normalize(),
             });
     }
 }
@@ -75,23 +74,23 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
 fn move_squirrels(mut query: Query<(&mut Squirrel, &mut Transform)>, bounds: Res<Bounds>) {
     for (mut squirrel, mut transform) in query.iter_mut() {
         // Reverse velocity component if going out of frame
-        if (transform.translation.x > bounds.x && squirrel.heading.x > 0.0)
-            || (transform.translation.x < -bounds.x && squirrel.heading.x < 0.0)
+        if (transform.translation.x > bounds.x && squirrel.velocity.x > 0.0)
+            || (transform.translation.x < -bounds.x && squirrel.velocity.x < 0.0)
         {
-            squirrel.heading.x = -squirrel.heading.x;
-        } else if (transform.translation.y > bounds.y && squirrel.heading.y > 0.0)
-            || (transform.translation.y < -bounds.y && squirrel.heading.y < 0.0)
+            squirrel.velocity.x = -squirrel.velocity.x;
+        } else if (transform.translation.y > bounds.y && squirrel.velocity.y > 0.0)
+            || (transform.translation.y < -bounds.y && squirrel.velocity.y < 0.0)
         {
-            squirrel.heading.y = -squirrel.heading.y;
+            squirrel.velocity.y = -squirrel.velocity.y;
         }
 
         // Movement for this time step
-        transform.translation += squirrel.heading * squirrel.speed * TIME_STEP;
+        transform.translation += squirrel.velocity * TIME_STEP;
 
         // Set sprite angle according to velocity TODO: there should be a better way...
-        let direction = -squirrel.heading.x.signum(); // compensates for the fact that angle_between finds the smallest angle regarless of direction
+        let direction = -squirrel.velocity.x.signum(); // compensates for the fact that angle_between finds the smallest angle regarless of direction
         transform.rotation = Quat::from_rotation_z(
-            squirrel.heading.angle_between(Vec3::new(0.0, 1.0, 0.0)) * direction,
+            squirrel.velocity.angle_between(Vec3::new(0.0, 1.0, 0.0)) * direction,
         );
     }
 }
