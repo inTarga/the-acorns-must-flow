@@ -4,6 +4,12 @@ use rand::prelude::*;
 
 const TIME_STEP: f32 = 1.0 / 60.0;
 
+// Range at which squirrels show flocking behaviour
+const FLOCKING_RANGE: f32 = 200.0;
+
+// How strongly aspects of flocking behaviour are expressed
+const ALIGNMENT_FACTOR: f32 = 0.005;
+
 fn main() {
     App::build()
         .add_plugins(DefaultPlugins) //TODO: maybe split this up?
@@ -22,6 +28,7 @@ impl Plugin for TamfPlugin {
             .add_system_set(
                 SystemSet::new()
                     .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
+                    .with_system(center_squirrels.system())
                     .with_system(move_squirrels.system())
                     .with_system(update_bounds.system()),
             );
@@ -68,6 +75,33 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
                 velocity: rng.gen_range(200.0..600.0)
                     * Vec3::new(x_heading, y_heading, 0.0).normalize(),
             });
+    }
+}
+
+// pull squirrels towards the centre of their local flock
+fn center_squirrels(mut query: Query<(&mut Squirrel, &Transform)>) {
+    let mut locations: Vec<Vec3> = Vec::new();
+    for (_, transform) in query.iter_mut() {
+        locations.push(transform.translation);
+    }
+
+    for (mut squirrel, transform) in query.iter_mut() {
+        let mut center = Vec3::ZERO;
+        let mut num_neighbours = 0;
+
+        for sub_translation in &locations {
+            if transform.translation.distance(*sub_translation) < FLOCKING_RANGE {
+                center += *sub_translation;
+                num_neighbours += 1;
+            }
+        }
+
+        if num_neighbours >= 2 {
+            center.x = center.x / num_neighbours as f32;
+            center.y = center.y / num_neighbours as f32;
+
+            squirrel.velocity += (center - transform.translation) * ALIGNMENT_FACTOR;
+        }
     }
 }
 
