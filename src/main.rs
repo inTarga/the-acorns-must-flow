@@ -8,7 +8,10 @@ const TIME_STEP: f32 = 1.0 / 60.0;
 const FLOCKING_RANGE: f32 = 200.0;
 
 // How strongly aspects of flocking behaviour are expressed
-const ALIGNMENT_FACTOR: f32 = 0.005;
+const CENTERING_FACTOR: f32 = 0.005;
+const ALIGNMENT_FACTOR: f32 = 0.05;
+const SEPARATION_FACTOR: f32 = 0.05;
+const SEPARATION_DISTANCE: f32 = 30.0;
 
 fn main() {
     App::build()
@@ -30,6 +33,7 @@ impl Plugin for TamfPlugin {
                     .with_run_criteria(FixedTimestep::step(TIME_STEP as f64))
                     .with_system(center_squirrels.system())
                     .with_system(align_squirrels.system())
+                    .with_system(separate_squirrels.system())
                     .with_system(move_squirrels.system())
                     .with_system(update_bounds.system()),
             );
@@ -43,6 +47,7 @@ struct Bounds {
 
 struct Squirrel {
     velocity: Vec3,
+    id: u32,
 }
 
 fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
@@ -50,7 +55,7 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
 
     let mut rng = rand::thread_rng();
 
-    for _ in 0..10 {
+    for i in 0..10 {
         // this maths ensures we never get initialise a zero heading
         let y_heading: f32 = rng.gen_range(-1.0..1.0);
 
@@ -61,7 +66,7 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
             .spawn_bundle(GeometryBuilder::build_as(
                 &shapes::RegularPolygon {
                     sides: 3,
-                    feature: shapes::RegularPolygonFeature::Radius(30.0),
+                    feature: shapes::RegularPolygonFeature::Radius(10.0),
                     ..shapes::RegularPolygon::default()
                 },
                 ShapeColors::new(Color::rgb(rng.gen(), rng.gen(), rng.gen())),
@@ -75,6 +80,7 @@ fn setup(mut commands: Commands, bounds: ResMut<Bounds>) {
             .insert(Squirrel {
                 velocity: rng.gen_range(200.0..600.0)
                     * Vec3::new(x_heading, y_heading, 0.0).normalize(),
+                id: i,
             });
     }
 }
@@ -101,7 +107,7 @@ fn center_squirrels(mut query: Query<(&mut Squirrel, &Transform)>) {
             center.x = center.x / num_neighbours as f32;
             center.y = center.y / num_neighbours as f32;
 
-            squirrel.velocity += (center - transform.translation) * ALIGNMENT_FACTOR;
+            squirrel.velocity += (center - transform.translation) * CENTERING_FACTOR;
         }
     }
 }
@@ -131,6 +137,28 @@ fn align_squirrels(mut query: Query<(&mut Squirrel, &Transform)>) {
             let sqv = squirrel.velocity.clone();
             squirrel.velocity += (avg_velocity - sqv) * ALIGNMENT_FACTOR;
         }
+    }
+}
+
+// avoid crowding nearby squirrels
+fn separate_squirrels(mut query: Query<(&mut Squirrel, &Transform)>) {
+    let mut squirrels: Vec<(u32, Vec3)> = Vec::new();
+    for (squirrel, transform) in query.iter_mut() {
+        squirrels.push((squirrel.id, transform.translation))
+    }
+
+    for (mut squirrel, transform) in query.iter_mut() {
+        let mut delta_v = Vec3::ZERO;
+
+        for (sub_id, sub_translation) in &squirrels {
+            if transform.translation.distance(*sub_translation) < SEPARATION_DISTANCE
+                && squirrel.id != *sub_id
+            {
+                delta_v += transform.translation - *sub_translation
+            }
+        }
+
+        squirrel.velocity += delta_v * SEPARATION_FACTOR;
     }
 }
 
